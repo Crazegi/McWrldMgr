@@ -52,11 +52,32 @@ jobs:
             release-assets/mcworldmgr-gui.exe
             mcworldmgr-windows.zip
 
-      - name: Upload release assets
+      - name: Upload release assets (retry)
         if: github.event_name == 'release'
-        uses: softprops/action-gh-release@v2
-        with:
-          files: |
-            release-assets/mcworldmgr-cli.exe
-            release-assets/mcworldmgr-gui.exe
-            mcworldmgr-windows.zip
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          $files = @(
+            "release-assets/mcworldmgr-cli.exe",
+            "release-assets/mcworldmgr-gui.exe",
+            "mcworldmgr-windows.zip"
+          )
+
+          $maxAttempts = 5
+          for ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {
+            Write-Host "Upload attempt $attempt of $maxAttempts"
+            gh release upload $env:TAG $files --repo $env:REPO --clobber
+            if ($LASTEXITCODE -eq 0) {
+              Write-Host "Release assets uploaded successfully."
+              exit 0
+            }
+
+            if ($attempt -lt $maxAttempts) {
+              Start-Sleep -Seconds (5 * $attempt)
+            }
+          }
+
+          throw "Failed to upload release assets after multiple retries."
