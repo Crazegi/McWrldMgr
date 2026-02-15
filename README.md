@@ -63,6 +63,15 @@ In the GUI:
 - Backup/restore actions run in background and show file-count progress.
 - Queued entity commands are written to `mcworldmgr_commands/queued_commands.mcfunction` inside the selected world.
 
+## GitHub release builds
+
+- CI tests run on pushes/PRs to `main` via [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
+- On every published GitHub Release, [`.github/workflows/release-windows.yml`](.github/workflows/release-windows.yml) builds Windows executables:
+	- `mcworldmgr-cli.exe`
+	- `mcworldmgr-gui.exe`
+	- `mcworldmgr-windows.zip`
+- Built files are attached to the Release automatically.
+
 ## Notes
 
 - Use the world folder name or absolute path with `--world`.
