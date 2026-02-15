@@ -1,0 +1,85 @@
+name: Attach Assets To Existing Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing release tag (example: 1.0.0)"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-attach:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e .
+          python -m pip install pyinstaller
+
+      - name: Build CLI executable
+        run: |
+          pyinstaller --noconfirm --onefile --name mcworldmgr-cli src/mcworldmgr/cli.py
+
+      - name: Build GUI executable
+        run: |
+          pyinstaller --noconfirm --onefile --windowed --name mcworldmgr-gui src/mcworldmgr/gui_main.py
+
+      - name: Package executables
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path release-assets -Force | Out-Null
+          Copy-Item dist/mcworldmgr-cli.exe release-assets/
+          Copy-Item dist/mcworldmgr-gui.exe release-assets/
+          Compress-Archive -Path release-assets/* -DestinationPath mcworldmgr-windows.zip -Force
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mcworldmgr-windows-${{ inputs.tag }}
+          path: |
+            release-assets/mcworldmgr-cli.exe
+            release-assets/mcworldmgr-gui.exe
+            mcworldmgr-windows.zip
+
+      - name: Attach assets to existing release (retry)
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          $files = @(
+            "release-assets/mcworldmgr-cli.exe",
+            "release-assets/mcworldmgr-gui.exe",
+            "mcworldmgr-windows.zip"
+          )
+
+          $maxAttempts = 5
+          for ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {
+            Write-Host "Upload attempt $attempt of $maxAttempts for tag $env:TAG"
+            gh release upload $env:TAG $files --repo $env:REPO --clobber
+            if ($LASTEXITCODE -eq 0) {
+              Write-Host "Release assets uploaded successfully."
+              exit 0
+            }
+
+            if ($attempt -lt $maxAttempts) {
+              Start-Sleep -Seconds (5 * $attempt)
+            }
+          }
+
+          throw "Failed to upload release assets after multiple retries."

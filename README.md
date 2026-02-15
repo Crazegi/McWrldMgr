@@ -71,6 +71,7 @@ In the GUI:
 	- `mcworldmgr-gui.exe`
 	- `mcworldmgr-windows.zip`
 - Built files are attached to the Release automatically.
+- To attach assets to an already published release tag (for example `1.0.0`), run [`.github/workflows/attach-existing-release.yml`](.github/workflows/attach-existing-release.yml) from the Actions tab and enter the tag.
 
 ## Notes
 
